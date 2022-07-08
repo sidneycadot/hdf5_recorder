@@ -1,8 +1,9 @@
-"""This module provides the FDF5Recorder and ActiveHDF5Recorder classes."""
+"""This module provides the HDF5Recorder and ActiveHDF5Recorder classes."""
 
 import queue
 import time
 import multiprocessing
+from typing import Optional, Dict
 
 import numpy as np
 import h5py
@@ -19,7 +20,7 @@ class HDF5Recorder:
 
     def __init__(self, filename: str):
         self._filename = filename
-        self._store_data = dict()
+        self._store_data: Dict[str, np.ndarray] = dict()
         self._is_open = False
 
     def __enter__(self):
@@ -72,7 +73,7 @@ class HDF5Recorder:
             return
 
         # Open the HDF5 file for read/write; the file must exist.
-        with h5py.File(self._filename, "r+") as fo:
+        with h5py.File(self._filename, "r+") as hdf5_file:
 
             for (key, data_items) in self._store_data.items():
 
@@ -80,10 +81,10 @@ class HDF5Recorder:
                 # This adds an extra dimension in front, even if it's just a single item.
                 data_array = np.stack(data_items)
 
-                if key in fo:
+                if key in hdf5_file:
                     # The dataset already exists.
                     # Reserve space for data in the dataset, and put it there.
-                    dset = fo[key]
+                    dset = hdf5_file[key]
                     old_size = len(dset)
                     new_size = old_size + len(data_array)
                     # print("enlarge dataset:", key, old_size, new_size)
@@ -92,7 +93,7 @@ class HDF5Recorder:
                 else:
                     # Create the dataset with the first (outer) dimension resizable.
                     # print("create dataset:", key, len(data_array))
-                    fo.create_dataset(key, data=data_array, maxshape=(None, ) + data_array.shape[1:])
+                    hdf5_file.create_dataset(key, data=data_array, maxshape=(None, ) + data_array.shape[1:])
 
         # Clear the buffer.
         self._store_data.clear()
@@ -103,7 +104,7 @@ def _active_hdf5_recorder(filename: str, flush_interval: float, the_queue: multi
 
     In addition, it calls the HDF5Recorder's flush() method, 'flush_interval' seconds after
     completion of the previous flush().
-    
+
     The function ends when an end-of-stream sentinel element (None) is received via the queue.
     """
 
@@ -134,13 +135,20 @@ def _active_hdf5_recorder(filename: str, flush_interval: float, the_queue: multi
 
 
 class ActiveHDF5Recorder:
-    """This class provides HDF5 file output, flushing data to file at a configurable interval."""
+    """This class provides HDF5 file output, flushing data to file at a configurable interval.
+    
+    The flush() operation does not have to be (in fact, it cannot) be called explicitly.
+
+    The ActiveHDF5Recorder uses a sub-process to do the actual HDF5 writing. The advantage
+    of this is that the slow flush() operation will not impact the thread that uses the
+    ActiveHDF5Recorder.
+    """
 
     def __init__(self, filename: str, flush_interval: float):
         self._filename = filename
         self._flush_interval = flush_interval
-        self._queue = None
-        self._process = None
+        self._queue: Optional[multiprocessing.Queue] = None
+        self._process: Optional[multiprocessing.Process] = None
         self._is_open = False
 
     def __enter__(self):
@@ -167,13 +175,17 @@ class ActiveHDF5Recorder:
         if not self._is_open:
             raise RuntimeError("Attempt to close an ActiveHDF5Recorder that is already closed.")
 
+        assert self._queue is not None
+        assert self._process is not None
+
         # Insert end-of-stream sentinel into the stream.
         self._queue.put(None)
 
-        self._process.join()  # Wait until the process has terminated, and free its resources.
+        # Wait until the process has terminated, then free its resources.
+        self._process.join()
 
         self._queue = None
-        self._thread = None
+        self._process = None
 
         self._is_open = False
 
@@ -182,5 +194,7 @@ class ActiveHDF5Recorder:
 
         if not self._is_open:
             raise RuntimeError("Attempt to store data to an ActiveHDF5Recorder that is closed.")
+
+        assert self._queue is not None
 
         self._queue.put((dataset, data))

@@ -1,4 +1,4 @@
-#! /usr/bin/env -S python3 -B -u
+#! /usr/bin/env -S python3 -B
 
 """Test program for the ActiveHDF5Recorder."""
 
@@ -9,8 +9,7 @@ import numpy as np
 from hdf5_recorder import ActiveHDF5Recorder
 
 def main() -> None:
-
-    # Test the ActiveHDF5Recorder.
+    """Test the ActiveHDF5Recorder."""
 
     imu_dtype = np.dtype([
         ("jan"     , np.float64),
@@ -19,17 +18,17 @@ def main() -> None:
         ("korneel" , np.bool_  )
     ])
 
-    filename = "/home/sidney/vm_shared/test.h5"
-    FPS = 25
+    filename = "test_directory/test.h5"
+    frames_per_second = 25.0
 
     with ActiveHDF5Recorder(filename, flush_interval=2.0) as recorder:
 
-        num_frames = 3600 * FPS
+        num_frames = round(300.0 * frames_per_second)  # Test for 5 minutes
 
         for frame_index in range(num_frames):
             # Wait for a bit to get to a somewhat realistic frame rate.
-            time.sleep(-time.time() % (1.0 / FPS))
-            
+            time.sleep(-time.time() % (1.0 / frames_per_second))
+
             test_percentage = frame_index / num_frames * 100.0
             print("[{:7.3f} %] frame: {:10d} queue: {:10d}".format(test_percentage, frame_index, recorder._queue.qsize()))
 
@@ -44,6 +43,7 @@ def main() -> None:
             recorder.store("frame_time", frame_time)
             recorder.store("imu_records", imu_record)
             recorder.store("imu_record_time", imu_record_time)
+
 
 if __name__ == "__main__":
     main()
