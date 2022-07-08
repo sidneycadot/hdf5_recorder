@@ -16,6 +16,12 @@ class HDF5Recorder:
     considerable time is not an issue.
 
     For more demanding use-cases, consider using the ActiveHDF5Recorder class defined below.
+
+    Note that the HDF5Recorder does not normally keep the HDF5 file open; it is re-opened every time
+    data needs to be written inside the flush() routine. This is done on purpose. In long-running
+    processes, it can be useful to have a look at partially written data, and an open HDF5 file cannot
+    be opened by a second process. By having the HDF5 file closed most of the time, we can make a
+    valid copy of it that can be used for inspection and analysis.
     """
 
     def __init__(self, filename: str):
