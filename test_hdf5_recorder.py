@@ -38,7 +38,7 @@ def main() -> None:
 
             # Make test record data.
             # Note that the creation of a single record is done by calling np.array on a tuple.
-            # This is important, as this will create a 0-dimensional (ie scalar) record instance, as intended;
+            # This is important, as this will create a 0-dimensional (ie scalar) record instance.
             # Somewhat surprisingly, when passing a list as the first argument, this doesn't work as intended.
             record = np.array((frame_index, frame_index, frame_index, True), dtype=record_dtype)
 
