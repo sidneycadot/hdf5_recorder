@@ -3,7 +3,7 @@
 import queue
 import time
 import multiprocessing
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 import numpy as np
 import h5py
@@ -26,7 +26,7 @@ class HDF5Recorder:
 
     def __init__(self, filename: str):
         self._filename = filename
-        self._store_data: Dict[str, np.ndarray] = dict()
+        self._store_data: Dict[str, List[np.ndarray]] = {}
         self._is_open = False
 
     def __enter__(self):
@@ -142,7 +142,7 @@ def _active_hdf5_recorder(filename: str, flush_interval: float, the_queue: multi
 
 class ActiveHDF5Recorder:
     """This class provides HDF5 file output, flushing data to file at a configurable interval.
-    
+
     The flush() operation does not have to be (in fact, it cannot) be called explicitly.
 
     The ActiveHDF5Recorder uses a sub-process to do the actual HDF5 writing. The advantage
@@ -181,6 +181,7 @@ class ActiveHDF5Recorder:
         if not self._is_open:
             raise RuntimeError("Attempt to close an ActiveHDF5Recorder that is already closed.")
 
+        # These asserts will always pass. We added them as analysis hints for mypy.
         assert self._queue is not None
         assert self._process is not None
 
@@ -201,6 +202,7 @@ class ActiveHDF5Recorder:
         if not self._is_open:
             raise RuntimeError("Attempt to store data to an ActiveHDF5Recorder that is closed.")
 
+        # This assert will always pass. We added it as an analysis hint for mypy.
         assert self._queue is not None
 
         self._queue.put((dataset, data))
