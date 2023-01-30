@@ -22,6 +22,17 @@ class HDF5Recorder:
     processes, it can be useful to have a look at partially written data, and an open HDF5 file cannot
     be opened by a second process. By having the HDF5 file closed most of the time, we can make a
     valid copy of it that can be used for inspection and analysis.
+
+    Mode "extend": the stored element is a (possibly multi-dimensional) array. The content will be
+    appended to the pre-existing dataset. The type of the dataset and the element to be stored
+    should be identical, EXCEPT for the first dimension.
+
+    Mode 'stack": the stored element is assumed to be a single element that will be stacked on
+      (after) any pre-existing elements found in the dataset.
+
+      The dataset will have an extra leading dimension compared to the elements.
+
+      All elements should have the same shape and dtype.
     """
 
     def __init__(self, filename: str):
@@ -55,7 +66,7 @@ class HDF5Recorder:
         self.flush()
         self._is_open = False
 
-    def store(self, dataset: str, data: np.ndarray) -> None:
+    def store(self, dataset: str, data: np.ndarray, mode: str='extend') -> None:
         """Buffer data inside the HDF5 recorder, intended to be stored at the next invocation of flush()."""
         if not self._is_open:
             raise RuntimeError("Attempt to store data to an HDF5Recorder that is closed.")
@@ -196,7 +207,7 @@ class ActiveHDF5Recorder:
 
         self._is_open = False
 
-    def store(self, dataset: str, data: np.ndarray) -> None:
+    def store(self, dataset: str, data: np.ndarray, mode: str='extend') -> None:
         """Store data into the ActiveHDF5Recorder."""
 
         if not self._is_open:
