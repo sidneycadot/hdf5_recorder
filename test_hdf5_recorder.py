@@ -25,54 +25,59 @@ def main() -> None:
     ])
 
     filename = "test.h5"
-    frames_per_second = 25.0
-
-    duration = 5.0  # seconds
 
     with ActiveHDF5Recorder(filename, flush_interval=2.0) as recorder:
 
-        num_frames = round(duration * frames_per_second)
+        num_loops = 10
 
-        for frame_index in range(num_frames):
-            # Wait for a bit to get to a somewhat realistic frame rate.
-            time.sleep(-time.time() % (1.0 / frames_per_second))
-
-            test_percentage = frame_index / num_frames * 100.0
-            print("[{:7.3f} %] frame: {:10d} queue: {:10d}".format(test_percentage, frame_index, recorder._queue.qsize()))
+        for loop_index in range(num_loops):
 
             # Make test record data.
 
             # Note that the creation of a single record is done by calling np.array on a tuple.
             # This is important, as this will create a 0-dimensional (ie scalar) record instance.
             # Somewhat surprisingly, when passing a list as the first argument, this doesn't work as intended.
-            record_scalar = np.array((frame_index, frame_index, frame_index, True), dtype=record_dtype)
+            record_scalar = np.array((loop_index, loop_index, loop_index, True), dtype=record_dtype)
             assert record_scalar.shape == ()  # empty tuple
 
-            record_1d_array = np.empty(shape=(10,), dtype=record_dtype)
+            record_1d_array = np.empty(shape=(17,), dtype=record_dtype)
             record_1d_array[:] = record_scalar
-            assert record_1d_array.shape == (10, )
+            assert record_1d_array.shape == (17, )
 
-            record_2d_array = np.empty(shape=(10, 10), dtype=record_dtype)
+            record_2d_array = np.empty(shape=(23, 29), dtype=record_dtype)
             record_2d_array[:, :] = record_scalar
-            assert record_2d_array.shape == (10, 10)
+            assert record_2d_array.shape == (23, 29)
 
-            float_scalar = time.time()
-            float_1d_array = np.empty(shape=(10,), dtype=np.float64)
+            float_scalar = loop_index
+            float_1d_array = np.empty(shape=(17,), dtype=np.float64)
             float_1d_array[:] = float_scalar
-            assert float_1d_array.shape == (10, )
+            assert float_1d_array.shape == (17, )
 
-            float_2d_array = np.empty(shape=(10, 10), dtype=np.float64)
+            float_2d_array = np.empty(shape=(23, 29), dtype=np.float64)
             float_2d_array[:, :] = float_scalar
-            assert float_2d_array.shape == (10, 10)
+            assert float_2d_array.shape == (23, 29)
 
-            # Push them to the recorder.
+            # Push them to the recorder in 'append' mode:
 
-            recorder.store("record_scalar_dset", record_scalar)
-            recorder.store("record_1d_array_dset", record_1d_array)
-            recorder.store("record_2d_array_dset", record_2d_array)
-            recorder.store("float_scalar_dset", float_scalar)
-            recorder.store("float_1d_array_dset", float_1d_array)
-            recorder.store("float_2d_array_dset", float_2d_array)
+            recorder.append("append_record_scalar_dset", record_scalar)
+            recorder.append("append_record_1d_array_dset", record_1d_array)
+            recorder.append("append_record_2d_array_dset", record_2d_array)
+
+            recorder.append("append_float_scalar_dset", float_scalar)
+            recorder.append("append_float_1d_array_dset", float_1d_array)
+            recorder.append("append_float_2d_array_dset", float_2d_array)
+
+            # We cannot "extend" with scalars!
+
+            #recorder.extend("extend_record_scalar_dset", record_scalar)
+            recorder.extend("extend_record_1d_array_dset", record_1d_array)
+            recorder.extend("extend_record_2d_array_dset", record_2d_array)
+
+            #recorder.extend("extend_float_scalar_dset", float_scalar)
+            recorder.extend("extend_float_1d_array_dset", float_1d_array)
+            recorder.extend("extend_float_2d_array_dset", float_2d_array)
+
+    print("All done.")
 
 
 if __name__ == "__main__":

@@ -52,7 +52,7 @@ class HDF5Recorder:
         if self._is_open:
             raise RuntimeError("Attempt to open an HDF5Recorder that is already open.")
 
-        # Create file, truncate if it already exists.
+        # Create file, truncate it if it already exists.
         with h5py.File(self._filename, "w"):
             # Create an empty HDF5 file and close it immediately.
             pass
@@ -66,8 +66,38 @@ class HDF5Recorder:
         self.flush()
         self._is_open = False
 
-    def store(self, dataset: str, data: np.ndarray, mode: str='extend') -> None:
-        """Buffer data inside the HDF5 recorder, intended to be stored at the next invocation of flush()."""
+    def append(self, dataset: str, data) -> None:
+        """Add a single element to the end of a dataset.
+        
+        This buffer data inside the HDF5 recorder, intended to be stored at the next invocation of flush().
+
+        If the dataset already exists, it must have a leading dimension that can be enlarged.
+        The 'data' argument should be a of the same type as the elements:
+
+           dataset[0]
+           dataset[1]
+             ...
+           dataset[n-1], where n == len(dataset)
+
+        The result of the append will be that the dataset is enlarged by one element,
+        dataset[n], containing the data passed in.
+        """
+
+        # The 'append' operation is implemented in terms of the 'extend' operation:
+        data_with_extra_prefix_dimension = np.expand_dims(data, axis=0)
+        self.extend(dataset, data_with_extra_prefix_dimension)
+
+    def extend(self, dataset: str, data) -> None:
+        """Add multiple elements to the end of a dataset.
+
+        This buffer data inside the HDF5 recorder, intended to be stored at the next invocation of flush().
+
+        If the dataset already exists, it must have a leading dimension that can be enlarged.
+
+        The 'data' argument should be a of the same type as the entire dataset, except for the
+        fact that the first dimension may be a different length.
+        """
+
         if not self._is_open:
             raise RuntimeError("Attempt to store data to an HDF5Recorder that is closed.")
 
@@ -87,6 +117,7 @@ class HDF5Recorder:
             raise RuntimeError("Attempt to flush an HDF5Recorder that is closed.")
 
         if len(self._store_data) == 0:
+            # Notjing to store.
             return
 
         # Open the HDF5 file for read/write; the file must exist.
@@ -95,21 +126,18 @@ class HDF5Recorder:
             for (key, data_items) in self._store_data.items():
 
                 # Combine all data items.
-                # This adds an extra dimension in front, even if it's just a single item.
-                data_array = np.stack(data_items)
+                data_array = np.concatenate(data_items)
 
                 if key in hdf5_file:
                     # The dataset already exists.
-                    # Reserve space for data in the dataset, and put it there.
+                    # Reserve space for new data in the dataset, and put the new data there.
                     dset = hdf5_file[key]
                     old_size = len(dset)
                     new_size = old_size + len(data_array)
-                    # print("enlarge dataset:", key, old_size, new_size)
                     dset.resize(new_size, axis=0)
                     dset[old_size:new_size]=data_array
                 else:
                     # Create the dataset with the first (outer) dimension resizable.
-                    # print("create dataset:", key, len(data_array))
                     hdf5_file.create_dataset(key, data=data_array, maxshape=(None, ) + data_array.shape[1:])
 
         # Clear the buffer.
@@ -144,7 +172,7 @@ def _active_hdf5_recorder(filename: str, flush_interval: float, the_queue: multi
 
             if item is not None:
                 (dataset, data) = item
-                recorder.store(dataset, data)
+                recorder.extend(dataset, data)
 
             if time.monotonic() >= flush_time:
                 recorder.flush()
@@ -207,8 +235,15 @@ class ActiveHDF5Recorder:
 
         self._is_open = False
 
-    def store(self, dataset: str, data: np.ndarray, mode: str='extend') -> None:
-        """Store data into the ActiveHDF5Recorder."""
+    def append(self, dataset: str, data) -> None:
+        """Store a single element of data into the ActiveHDF5Recorder."""
+
+        # The 'append' operation is implemented in terms of the 'extend' operation:
+        data_with_extra_prefix_dimension = np.expand_dims(data, axis=0)
+        self.extend(dataset, data_with_extra_prefix_dimension)
+
+    def extend(self, dataset: str, data) -> None:
+        """Store multiple elements of data into the ActiveHDF5Recorder."""
 
         if not self._is_open:
             raise RuntimeError("Attempt to store data to an ActiveHDF5Recorder that is closed.")
