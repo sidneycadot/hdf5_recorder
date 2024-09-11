@@ -106,7 +106,7 @@ class HDF5Recorder:
             raise RuntimeError("Attempt to flush an HDF5Recorder that is closed.")
 
         if len(self._store_data) == 0:
-            # Notjing to store.
+            # Nothing to store.
             return
 
         # Open the HDF5 file for read/write; the file must exist.
