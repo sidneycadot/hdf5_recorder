@@ -22,17 +22,6 @@ class HDF5Recorder:
     processes, it can be useful to have a look at partially written data, and an open HDF5 file cannot
     be opened by a second process. By having the HDF5 file closed most of the time, we can make a
     valid copy of it that can be used for inspection and analysis.
-
-    Mode "extend": the stored element is a (possibly multi-dimensional) array. The content will be
-    appended to the pre-existing dataset. The type of the dataset and the element to be stored
-    should be identical, EXCEPT for the first dimension.
-
-    Mode 'stack": the stored element is assumed to be a single element that will be stacked on
-      (after) any pre-existing elements found in the dataset.
-
-      The dataset will have an extra leading dimension compared to the elements.
-
-      All elements should have the same shape and dtype.
     """
 
     def __init__(self, filename: str):
@@ -66,7 +55,7 @@ class HDF5Recorder:
         self.flush()
         self._is_open = False
 
-    def append(self, dataset: str, data) -> None:
+    def append(self, dataset: str, data: np.ndarray) -> None:
         """Add a single element to the end of a dataset.
         
         This buffer data inside the HDF5 recorder, intended to be stored at the next invocation of flush().
@@ -83,11 +72,11 @@ class HDF5Recorder:
         dataset[n], containing the data passed in.
         """
 
-        # The 'append' operation is implemented in terms of the 'extend' operation:
+        # The 'append' operation is implemented in terms of the 'extend' operation.
         data_with_extra_prefix_dimension = np.expand_dims(data, axis=0)
         self.extend(dataset, data_with_extra_prefix_dimension)
 
-    def extend(self, dataset: str, data) -> None:
+    def extend(self, dataset: str, data: np.ndarray) -> None:
         """Add multiple elements to the end of a dataset.
 
         This buffer data inside the HDF5 recorder, intended to be stored at the next invocation of flush().
@@ -109,8 +98,8 @@ class HDF5Recorder:
     def flush(self) -> None:
         """Flush data from the HDF5 recorder to file.
 
-        This method may take a considerable amount of time (seconds or more) if a considerable amount of data
-        is currently buffered.
+        This method may take a non-negligible amount of time (seconds or more) if a considerable
+        amount of data is currently buffered.
         """
 
         if not self._is_open:
